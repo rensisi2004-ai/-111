@@ -44,7 +44,7 @@ const analysisSchema: Schema = {
 export const analyzeArticleWithGemini = async (text: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: `Perform an intensive reading analysis (精读) on the following English text for an IELTS student targeting Band 9. 
       Break it down sentence by sentence. Extract Band 7+ vocabulary. 
       Identify long and difficult sentences (长难句) in 'grammarNotes'.
@@ -78,7 +78,7 @@ export const analyzeMistakeWithGemini = async (questionType: string, question: s
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
     });
 
@@ -92,7 +92,7 @@ export const analyzeMistakeWithGemini = async (questionType: string, question: s
 export const getArticleRecommendations = async (targetBand: string = "9.0"): Promise<RecommendedArticle[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: `Generate 5 IELTS Academic Reading passage ideas for a student targeting Band ${targetBand}. 
       Topics should vary (Science, History, Sociology, etc.).
       Provide a title, a short excerpt (50 words), and a prompt I can use to generate the full article later.`,
@@ -123,7 +123,7 @@ export const getArticleRecommendations = async (targetBand: string = "9.0"): Pro
 export const generateFullArticle = async (prompt: string): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: `Write a full length IELTS Academic Reading passage (approx 800-1000 words) based on this prompt: ${prompt}. 
       Ensure high-level vocabulary and complex sentence structures suitable for Band 9 practice. 
       Only return the article text, no intro/outro.`,
@@ -138,7 +138,7 @@ export const generateFullArticle = async (prompt: string): Promise<string> => {
 export const generateStudyPlanAdvice = async (mistakeSummary: string): Promise<string> => {
    try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: `Based on the following mistake summary for an IELTS student, provide a concise 3-point study strategy for the next week:
       ${mistakeSummary}`,
     });
