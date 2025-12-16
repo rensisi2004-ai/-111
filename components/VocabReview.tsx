@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { VocabWord } from '../types';
-import { ChevronLeft, ChevronRight, Check, RotateCcw, Volume2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Volume2, Edit3, Save, Layers } from 'lucide-react';
 
 interface VocabReviewProps {
   vocabList: VocabWord[];
   onToggleMastered: (id: string) => void;
+  onUpdateVocab: (updatedVocab: VocabWord) => void;
 }
 
-const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered }) => {
+const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered, onUpdateVocab }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'learning'>('learning');
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [tempNote, setTempNote] = useState('');
 
   const activeList = filterMode === 'learning' 
     ? vocabList.filter(v => !v.mastered) 
@@ -20,18 +23,35 @@ const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered }
 
   const handleNext = () => {
     setIsFlipped(false);
+    setIsEditingNote(false);
     setCurrentIndex((prev) => (prev + 1) % activeList.length);
   };
 
   const handlePrev = () => {
     setIsFlipped(false);
+    setIsEditingNote(false);
     setCurrentIndex((prev) => (prev - 1 + activeList.length) % activeList.length);
   };
 
   const speak = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-GB'; // IELTS preference
+    utterance.lang = 'en-GB';
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleFlip = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).closest('.no-flip')) {
+      return;
+    }
+    setIsFlipped(!isFlipped);
+    if (!isFlipped) {
+      setTempNote(currentCard.userNotes || '');
+    }
+  };
+
+  const saveNote = () => {
+    onUpdateVocab({ ...currentCard, userNotes: tempNote });
+    setIsEditingNote(false);
   };
 
   if (activeList.length === 0) {
@@ -69,9 +89,9 @@ const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered }
         </div>
       </div>
 
-      <div className="perspective-1000 h-80 relative group">
+      <div className="perspective-1000 h-96 relative group">
         <div 
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={handleFlip}
           className={`w-full h-full relative preserve-3d transition-transform duration-500 cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
           style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
         >
@@ -83,7 +103,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered }
             
             <button 
               onClick={(e) => { e.stopPropagation(); speak(currentCard.word); }} 
-              className="mt-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-colors"
+              className="mt-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-colors no-flip"
             >
               <Volume2 size={24} />
             </button>
@@ -92,23 +112,66 @@ const VocabReview: React.FC<VocabReviewProps> = ({ vocabList, onToggleMastered }
 
           {/* Back */}
           <div 
-            className="absolute w-full h-full backface-hidden bg-brand-50 rounded-2xl shadow-lg border border-brand-100 flex flex-col items-center justify-center p-8"
+            className="absolute w-full h-full backface-hidden bg-brand-50 rounded-2xl shadow-lg border border-brand-100 flex flex-col p-6 overflow-y-auto"
             style={{ transform: 'rotateY(180deg)' }}
           >
-            <span className="text-sm text-brand-400 uppercase tracking-widest font-bold mb-4">Meaning</span>
-            <p className="text-xl text-center font-medium text-slate-800 mb-4">{currentCard.meaning}</p>
-            
-            <div className="w-full border-t border-brand-200 my-4"></div>
-            
-            <div className="text-center">
-               <p className="text-sm text-slate-500 italic mb-1">"{currentCard.contextSentence}"</p>
+            {/* Meaning (Chinese) */}
+            <div className="text-center mb-3">
+               <span className="text-xs text-brand-400 uppercase tracking-widest font-bold">Meaning (Chinese)</span>
+               <p className="text-xl font-bold text-slate-800 mt-1">{currentCard.meaning}</p>
             </div>
             
-            <div className="mt-6 flex gap-2 flex-wrap justify-center">
-              {currentCard.synonyms.map((syn, i) => (
-                <span key={i} className="px-2 py-1 bg-white text-slate-600 text-xs rounded border border-brand-200">{syn}</span>
-              ))}
+            {/* Context */}
+            <div className="text-center mb-4 bg-white p-2 rounded border border-slate-100">
+               <p className="text-xs text-slate-400 mb-1">Context</p>
+               <p className="text-sm text-slate-600 italic">"{currentCard.contextSentence}"</p>
             </div>
+
+            {/* Collocations & Synonyms */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+               <div>
+                  <h5 className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1"><Layers size={10}/> Collocations</h5>
+                  <div className="flex flex-col gap-1">
+                    {currentCard.collocations && currentCard.collocations.length > 0 ? (
+                      currentCard.collocations.map((col, i) => (
+                        <span key={i} className="text-xs bg-white border border-slate-200 px-2 py-1 rounded text-slate-600">{col}</span>
+                      ))
+                    ) : <span className="text-xs text-slate-300">None available</span>}
+                  </div>
+               </div>
+               <div>
+                  <h5 className="text-xs font-bold text-slate-500 mb-1">Synonyms</h5>
+                  <div className="flex flex-wrap gap-1">
+                    {currentCard.synonyms.slice(0, 3).map((syn, i) => (
+                      <span key={i} className="text-xs text-slate-500 bg-slate-100 px-1 rounded">{syn}</span>
+                    ))}
+                  </div>
+               </div>
+            </div>
+
+            {/* Editable Notes Section */}
+            <div className="mt-auto bg-white p-3 rounded-lg border border-brand-200 no-flip shadow-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-slate-400">My Notes</span>
+                {isEditingNote ? (
+                   <button onClick={saveNote} className="text-green-600 hover:text-green-700"><Save size={14}/></button>
+                ) : (
+                   <button onClick={() => { setIsEditingNote(true); setTempNote(currentCard.userNotes || ''); }} className="text-brand-600 hover:text-brand-700"><Edit3 size={14}/></button>
+                )}
+              </div>
+              {isEditingNote ? (
+                <textarea 
+                  className="w-full text-sm p-2 bg-slate-50 rounded border border-slate-200"
+                  rows={2}
+                  value={tempNote}
+                  onChange={(e) => setTempNote(e.target.value)}
+                  placeholder="Add usage notes..."
+                />
+              ) : (
+                <p className="text-xs text-slate-600 min-h-[20px]">{currentCard.userNotes || "No notes added."}</p>
+              )}
+            </div>
+
           </div>
         </div>
       </div>

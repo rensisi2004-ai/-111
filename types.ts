@@ -4,9 +4,12 @@ export interface VocabWord {
   meaning: string;
   contextSentence: string;
   synonyms: string[];
+  collocations?: string[]; // New: Expanded phrases/collocations
   mastered: boolean;
-  mistakeCount?: number; // Track how often this word was forgotten/marked difficult
+  mistakeCount?: number;
   id: string;
+  userNotes?: string;
+  isCustom?: boolean;
 }
 
 export interface SentenceAnalysis {
@@ -14,6 +17,7 @@ export interface SentenceAnalysis {
   translation: string;
   grammarNotes: string;
   keyPhrases: string[];
+  userNotes?: string;
 }
 
 export interface DifficultSentence {
@@ -49,7 +53,7 @@ export enum QuestionType {
 
 export interface MistakeRecord {
   id: string;
-  articleId?: string;
+  articleId?: string; // Links mistake to specific article
   questionType: QuestionType;
   questionText: string;
   wrongAnswer: string;
@@ -64,7 +68,7 @@ export interface RecommendedArticle {
   topic: string;
   difficulty: string;
   excerpt: string;
-  fullContentGeneratorPrompt: string; // Used to fetch full text
+  fullContentGeneratorPrompt: string;
 }
 
 export interface StudyPlan {

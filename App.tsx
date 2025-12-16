@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, PenTool, Brain, LogOut, PlusCircle, Sparkles } from 'lucide-react';
+import { LayoutDashboard, BookOpen, PenTool, Brain, LogOut, PlusCircle, Sparkles, History, Trash2 } from 'lucide-react';
 import ArticleInput from './components/ArticleInput';
 import AnalysisView from './components/AnalysisView';
 import MistakeTracker from './components/MistakeTracker';
@@ -8,11 +8,13 @@ import ArticleRecommendations from './components/ArticleRecommendations';
 import { ArticleData, MistakeRecord, VocabWord, DifficultSentence } from './types';
 import { analyzeArticleWithGemini } from './services/geminiService';
 
-type Tab = 'input' | 'recommend' | 'reading' | 'vocab' | 'mistakes';
+type Tab = 'input' | 'recommend' | 'reading' | 'vocab' | 'mistakes' | 'history';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<Tab>('input');
   const [currentArticle, setCurrentArticle] = useState<ArticleData | null>(null);
+  const [articleHistory, setArticleHistory] = useState<ArticleData[]>([]);
+  
   const [vocabList, setVocabList] = useState<VocabWord[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
   const [difficultSentences, setDifficultSentences] = useState<DifficultSentence[]>([]);
@@ -23,14 +25,17 @@ const App = () => {
     const savedVocab = localStorage.getItem('ielts-vocab');
     const savedMistakes = localStorage.getItem('ielts-mistakes');
     const savedArticle = localStorage.getItem('ielts-current-article');
+    const savedHistory = localStorage.getItem('ielts-article-history');
     const savedSentences = localStorage.getItem('ielts-difficult-sentences');
 
     if (savedVocab) setVocabList(JSON.parse(savedVocab));
     if (savedMistakes) setMistakes(JSON.parse(savedMistakes));
     if (savedSentences) setDifficultSentences(JSON.parse(savedSentences));
+    if (savedHistory) setArticleHistory(JSON.parse(savedHistory));
+    
+    // Only load current article if it exists, otherwise default to input
     if (savedArticle) {
       setCurrentArticle(JSON.parse(savedArticle));
-      setActiveTab('reading');
     }
   }, []);
 
@@ -38,6 +43,7 @@ const App = () => {
   useEffect(() => { localStorage.setItem('ielts-vocab', JSON.stringify(vocabList)); }, [vocabList]);
   useEffect(() => { localStorage.setItem('ielts-mistakes', JSON.stringify(mistakes)); }, [mistakes]);
   useEffect(() => { localStorage.setItem('ielts-difficult-sentences', JSON.stringify(difficultSentences)); }, [difficultSentences]);
+  useEffect(() => { localStorage.setItem('ielts-article-history', JSON.stringify(articleHistory)); }, [articleHistory]);
   useEffect(() => { if (currentArticle) localStorage.setItem('ielts-current-article', JSON.stringify(currentArticle)); }, [currentArticle]);
 
   const handleAnalyzeArticle = async (title: string, text: string) => {
@@ -54,6 +60,7 @@ const App = () => {
       };
       
       setCurrentArticle(newArticle);
+      setArticleHistory(prev => [newArticle, ...prev]);
       
       if (analysisData.vocabulary) {
         setVocabList(prev => {
@@ -73,8 +80,31 @@ const App = () => {
     }
   };
 
+  const handleUpdateCurrentArticle = (updatedArticle: ArticleData) => {
+    setCurrentArticle(updatedArticle);
+    // Also update this article in history
+    setArticleHistory(prev => prev.map(a => a.id === updatedArticle.id ? updatedArticle : a));
+  };
+
   const handleToggleMastered = (id: string) => {
     setVocabList(prev => prev.map(w => w.id === id ? { ...w, mastered: !w.mastered } : w));
+  };
+
+  const handleUpdateVocab = (updatedVocab: VocabWord) => {
+    setVocabList(prev => prev.map(w => w.id === updatedVocab.id ? updatedVocab : w));
+  };
+
+  const loadFromHistory = (article: ArticleData) => {
+    setCurrentArticle(article);
+    setActiveTab('reading');
+  };
+
+  const deleteFromHistory = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm("Delete this article and its analysis?")) {
+       setArticleHistory(prev => prev.filter(a => a.id !== id));
+       if (currentArticle?.id === id) setCurrentArticle(null);
+    }
   };
 
   return (
@@ -88,7 +118,7 @@ const App = () => {
           </h1>
         </div>
         
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <button 
             onClick={() => setActiveTab('input')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'input' ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/20' : 'hover:bg-slate-800'}`}
@@ -124,6 +154,13 @@ const App = () => {
           >
             <PenTool size={20} /> Mistake Analytics
           </button>
+
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'history' ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/20' : 'hover:bg-slate-800'}`}
+          >
+            <History size={20} /> History
+          </button>
         </nav>
 
         <div className="p-6 border-t border-slate-800">
@@ -144,13 +181,15 @@ const App = () => {
               {activeTab === 'reading' && 'Deep Analysis'}
               {activeTab === 'vocab' && 'Spaced Repetition'}
               {activeTab === 'mistakes' && 'Error Tracking & Review'}
+              {activeTab === 'history' && 'Study History'}
             </h2>
             <p className="text-slate-500 text-sm">
               {activeTab === 'input' && 'Upload material to begin your intensive reading session.'}
               {activeTab === 'recommend' && 'Get personalized Band 9.0 reading materials.'}
-              {activeTab === 'reading' && 'Click sentences for grammar breakdown and translation.'}
-              {activeTab === 'vocab' && 'Review core IELTS vocabulary extracted from your articles.'}
+              {activeTab === 'reading' && 'Select text to translate. Click sentences for grammar.'}
+              {activeTab === 'vocab' && 'Review vocabulary with custom notes.'}
               {activeTab === 'mistakes' && 'Analyze patterns and generate weekly study plans.'}
+              {activeTab === 'history' && 'Review your past analyzed articles.'}
             </p>
           </div>
         </header>
@@ -172,11 +211,14 @@ const App = () => {
                 setDifficultSentences(prev => [...prev, s]);
                 alert("Sentence added to Mistake Tracker review list.");
               }}
+              onUpdateArticle={handleUpdateCurrentArticle}
+              mistakes={mistakes}
+              onAddMistake={(m) => setMistakes(prev => [...prev, m])}
             />
           )}
 
           {activeTab === 'vocab' && (
-            <VocabReview vocabList={vocabList} onToggleMastered={handleToggleMastered} />
+            <VocabReview vocabList={vocabList} onToggleMastered={handleToggleMastered} onUpdateVocab={handleUpdateVocab} />
           )}
 
           {activeTab === 'mistakes' && (
@@ -186,6 +228,38 @@ const App = () => {
               vocabList={vocabList}
               onAddMistake={(m) => setMistakes(prev => [...prev, m])} 
             />
+          )}
+
+          {activeTab === 'history' && (
+            <div className="grid grid-cols-1 gap-4">
+              {articleHistory.length === 0 ? (
+                <div className="text-center text-slate-400 py-12">No history yet. Start analyzing articles!</div>
+              ) : (
+                articleHistory.map((article) => (
+                  <div key={article.id} 
+                    onClick={() => loadFromHistory(article)}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-brand-400 cursor-pointer transition-all group relative"
+                  >
+                    <div className="flex justify-between items-start">
+                       <div>
+                         <h3 className="font-serif font-bold text-lg text-slate-800">{article.title}</h3>
+                         <p className="text-sm text-slate-500 mt-1">Analyzed on {new Date(article.dateAdded).toLocaleDateString()}</p>
+                         <div className="mt-3 flex gap-2">
+                           <span className="text-xs px-2 py-1 bg-slate-100 rounded text-slate-600">Level: {article.analysis?.level}</span>
+                           <span className="text-xs px-2 py-1 bg-slate-100 rounded text-slate-600">{article.analysis?.vocabulary.length} Words</span>
+                         </div>
+                       </div>
+                       <button 
+                         onClick={(e) => deleteFromHistory(e, article.id)}
+                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                       >
+                         <Trash2 size={18} />
+                       </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </main>
