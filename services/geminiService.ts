@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { SentenceAnalysis, VocabWord, RecommendedArticle } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
