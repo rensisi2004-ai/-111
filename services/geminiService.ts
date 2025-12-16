@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { SentenceAnalysis, VocabWord, RecommendedArticle } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 注意：变量名改成了 VITE_GOOGLE_API_KEY，且使用了 import.meta.env
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
 
 // Schema for Article Analysis
 const analysisSchema: Schema = {
